@@ -1,0 +1,43 @@
+<!-- 
+Simple Facebook Pixel Purchase Tracking Script
+Add this to Shopify Admin → Settings → Checkout → Additional Scripts
+This is the simplest implementation based on your original code
+-->
+
+<script>
+// Check if we're on the checkout success/thank you page
+if (window.Shopify && window.Shopify.checkout) {
+  var checkout = window.Shopify.checkout;
+  
+  // Only track if we have line items (successful purchase)
+  if (checkout.line_items && checkout.line_items.length > 0) {
+    
+    // Extract content_ids from line items
+    var contentIds = [];
+    for (var i = 0; i < checkout.line_items.length; i++) {
+      var item = checkout.line_items[i];
+      // Use variant_id if available, otherwise use product_id
+      var productId = item.variant_id ? item.variant_id.toString() : item.product_id.toString();
+      contentIds.push(productId);
+    }
+    
+    // Calculate total value (Shopify stores prices in cents)
+    var totalValue = parseFloat(checkout.total_price) / 100;
+    
+    // Your original Facebook Pixel tracking code with dynamic data
+    fbq('track', 'Purchase', {
+      content_ids: contentIds, // Dynamic array of product IDs
+      value: totalValue, // Dynamic total value
+      currency: checkout.currency, // Dynamic currency
+      content_type: 'product'
+    });
+    
+    // Optional: Log for debugging
+    console.log('Facebook Pixel Purchase tracked:', {
+      content_ids: contentIds,
+      value: totalValue,
+      currency: checkout.currency
+    });
+  }
+}
+</script>
