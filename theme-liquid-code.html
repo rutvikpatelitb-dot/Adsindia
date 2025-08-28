@@ -1,0 +1,143 @@
+<!-- 
+COPY THIS CODE FOR YOUR theme.liquid FILE
+Add this before the closing </body> tag in your theme.liquid file
+This works for Shopify Basic plan
+-->
+
+<script>
+// Facebook Pixel Purchase Tracking for Shopify Basic Plan
+// Add this code to your theme.liquid file before </body>
+
+document.addEventListener('DOMContentLoaded', function() {
+  
+  // Function to check if we're on thank you/order confirmation page
+  function isThankYouPage() {
+    var url = window.location.href.toLowerCase();
+    var pathname = window.location.pathname.toLowerCase();
+    
+    return (
+      url.includes('thank') ||
+      url.includes('order') ||
+      pathname.includes('/checkouts/') ||
+      pathname.includes('/orders/') ||
+      document.querySelector('.os-step__title') !== null ||
+      document.querySelector('[data-step="thank_you"]') !== null ||
+      document.querySelector('.step__footer') !== null ||
+      document.title.toLowerCase().includes('thank') ||
+      document.title.toLowerCase().includes('order confirmed')
+    );
+  }
+  
+  // Function to extract order value from page
+  function getOrderValue() {
+    // Try to find order total on the page
+    var totalSelectors = [
+      '.total-recap__final-price',
+      '.payment-due__price', 
+      '.total-line__price',
+      '.order-summary__emphasis',
+      '[data-order-total]',
+      '.total'
+    ];
+    
+    for (var i = 0; i < totalSelectors.length; i++) {
+      var element = document.querySelector(totalSelectors[i]);
+      if (element) {
+        var text = element.textContent || element.innerText;
+        var match = text.match(/[\d,]+\.?\d*/);
+        if (match) {
+          return parseFloat(match[0].replace(/,/g, ''));
+        }
+      }
+    }
+    
+    // Fallback: try to get from URL parameters
+    var urlParams = new URLSearchParams(window.location.search);
+    var total = urlParams.get('total') || urlParams.get('amount');
+    if (total) {
+      return parseFloat(total);
+    }
+    
+    return null;
+  }
+  
+  // Function to get currency
+  function getCurrency() {
+    // Try to detect currency from page
+    var currencySelectors = [
+      '[data-currency]',
+      '.currency',
+      '.total-recap__final-price',
+      '.payment-due__price'
+    ];
+    
+    for (var i = 0; i < currencySelectors.length; i++) {
+      var element = document.querySelector(currencySelectors[i]);
+      if (element) {
+        var text = element.textContent || element.innerText || element.getAttribute('data-currency');
+        // Look for currency symbols or codes
+        if (text.includes('$')) return 'USD';
+        if (text.includes('€')) return 'EUR';
+        if (text.includes('£')) return 'GBP';
+        if (text.includes('₹')) return 'INR';
+        // Add more currencies as needed
+      }
+    }
+    
+    // Default fallback (change this to your store's currency)
+    return 'USD';
+  }
+  
+  // Main tracking function
+  function trackPurchase() {
+    if (typeof fbq === 'undefined') {
+      console.log('Facebook Pixel not found. Make sure fbq is loaded.');
+      return;
+    }
+    
+    var orderValue = getOrderValue();
+    var currency = getCurrency();
+    
+    var purchaseData = {
+      content_type: 'product',
+      currency: currency
+    };
+    
+    // Add value if we found it
+    if (orderValue && orderValue > 0) {
+      purchaseData.value = orderValue;
+    }
+    
+    // Track the purchase
+    fbq('track', 'Purchase', purchaseData);
+    
+    console.log('✅ Facebook Pixel Purchase tracked:', purchaseData);
+    
+    // Also track a custom event for backup
+    fbq('trackCustom', 'OrderCompleted', {
+      currency: currency,
+      value: orderValue || 0
+    });
+  }
+  
+  // Check if we should track
+  if (isThankYouPage()) {
+    // Wait a bit for page to fully load
+    setTimeout(trackPurchase, 1500);
+  }
+  
+});
+
+// Also try tracking when the page becomes visible (for back button scenarios)
+document.addEventListener('visibilitychange', function() {
+  if (!document.hidden && window.location.href.toLowerCase().includes('thank')) {
+    setTimeout(function() {
+      if (typeof fbq !== 'undefined') {
+        fbq('track', 'Purchase', {
+          content_type: 'product'
+        });
+      }
+    }, 1000);
+  }
+});
+</script>
